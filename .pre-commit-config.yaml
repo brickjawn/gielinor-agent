@@ -12,7 +12,7 @@
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: check-added-large-files
         # Frame captures are PNGs and it is easy to commit a few hundred MB of
