@@ -29,7 +29,7 @@ jobs:
         python-version: ["3.11", "3.13"]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v7
         with:
@@ -77,7 +77,7 @@ jobs:
     # accuracy shows up in the log rather than three weeks later.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
@@ -95,7 +95,7 @@ jobs:
     # A green unit suite with a broken wiring diagram is a real failure mode.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
