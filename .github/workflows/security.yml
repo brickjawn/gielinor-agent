@@ -29,10 +29,38 @@ jobs:
           # only the tip would miss it entirely.
           fetch-depth: 0
 
+      # The binary, not gitleaks/gitleaks-action@v2. The action derives its scan
+      # range from the event payload, and on a push it diffs `before..after` --
+      # which on the first push to a fresh repo is the all-zeros SHA, so it tries
+      # to diff from a commit that does not exist and fails in ~10s with nothing
+      # to do with secrets. It also wants GITHUB_TOKEN and gates org-owned repos
+      # behind a licence.
+      #
+      # Invoking the binary removes all of that: we say what to scan, the whole
+      # history is scanned every run rather than an incremental range, no token
+      # is handed to a third-party action, and the command is character-for-
+      # character what runs in the pre-commit hook. Fewer moving parts in the
+      # job whose entire purpose is to be trustworthy.
+      #
+      # Version is pinned and the download is checksum-verified. Dependabot does
+      # not track raw release downloads, so this one needs bumping by hand --
+      # noted here because a pin nobody updates is its own slow problem.
       - name: gitleaks
-        uses: gitleaks/gitleaks-action@v2
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_VERSION: "8.24.0"
+        run: |
+          set -euo pipefail
+          base="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
+          tarball="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSLf "${base}/${tarball}" -o /tmp/gitleaks.tar.gz
+          curl -sSLf "${base}/gitleaks_${GITLEAKS_VERSION}_checksums.txt" -o /tmp/gitleaks.sums
+          ( cd /tmp && grep " ${tarball}\$" gitleaks.sums | sha256sum -c - )
+          tar xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+          /tmp/gitleaks version
+          # Full history, not a commit range. A key committed months ago and
+          # "removed" in the next commit is still in the repo and still needs
+          # rotating; an incremental scan would never see it again.
+          /tmp/gitleaks git . --config .gitleaks.toml --redact --no-banner --exit-code 1
 
       # A second, dependency-free pass that also runs on every local `pytest`.
       # gitleaks is the better scanner, but a check that only exists in CI is a

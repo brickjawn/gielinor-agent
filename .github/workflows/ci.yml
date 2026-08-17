@@ -54,7 +54,21 @@ jobs:
       - name: Format check
         run: ruff format --check src tests benchmarks scripts
 
+      # Only on the floor version, and that is not laziness — it is the only
+      # coherent way to run it. `python_version = "3.11"` in pyproject is
+      # correct: 3.11 is what this project promises to support, so that is what
+      # the type check should verify. But mypy resolves *installed* stubs, and
+      # numpy's 3.13-era stubs use PEP 695 `type` statements, which mypy cannot
+      # even parse when told to target 3.11 — it fails with a syntax error
+      # inside numpy/__init__.pyi rather than anything about our code.
+      #
+      # So mypy must run on an interpreter matching its python_version. The
+      # 3.13 leg still earns its place: it catches *runtime* incompatibilities,
+      # which is what the test step above is for. Type-checking the same
+      # 3.11-targeted source twice against different stub vintages produces
+      # noise, not signal.
       - name: Types
+        if: matrix.python-version == '3.11'
         run: python -m mypy --strict src/gielinor
 
   benchmarks:
