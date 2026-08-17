@@ -179,11 +179,26 @@ first is that synthetic input is a genuine OS privilege — the same mechanism t
 clicks a tree can type into any focused window — and a stuck loop with hands on
 the mouse is not something you want to be debugging while it runs.
 
+This is also where the actuator becomes a separate process, per
+[ADR 0004](adr/0004-process-split-not-container-split.md). Worth noting that this
+is not extra work bolted onto the phase: the kill switch and the privilege
+boundary are the *same mechanism*. An in-process handler is stuck exactly when
+you need it — which is the case the kill switch exists for. A separate process
+you can signal, or whose socket you can close, stops input regardless of what the
+planner is doing. Build it once and both requirements are satisfied.
+
+Everything else stays in one virtual environment on the same machine. There is no
+container in this path.
+
 The target for this phase is deliberately tiny: **one click, on one tree,
 correctly, once.** Then stop and read the trace.
 
 **Exit criteria**
-- Kill switch verified working while the loop is running.
+- Actuator running as its own process behind the socket, speaking only validated
+  `Action` messages.
+- Kill switch verified working *while the loop is running*, and verified again
+  with the agent loop deliberately wedged — the second test is the one that
+  matters, and the easy one to skip.
 - One correct click, with the trace confirming it resolved from the intended `oid`.
 - Click coordinates land inside the object mask, not merely inside the bbox.
 

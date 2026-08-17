@@ -1,8 +1,21 @@
 # Deployment and secret handling
 
+> **Read this first.** [ADR 0004](adr/0004-process-split-not-container-split.md)
+> narrowed what follows. The actual deployment is **one virtual environment on
+> the target machine, with the actuator as a separate process behind a Unix
+> socket.** No container in the loop.
+>
+> The container material below is still accurate and still worth reading — it is
+> the CI environment definition and a reference deployment, and it is where the
+> secret-handling mechanism is documented. But it describes an option, not the
+> path. The short version of why: the security property comes from the *process*
+> split, not the container, and the container's costs land squarely in the phase
+> where coordinate bugs get debugged. `secrets_dir` works fine without Compose —
+> it is only a directory path.
+
 ## The split, and why it falls out of the threat model
 
-The agent does not containerize as one unit, and the line it splits along is not
+The agent does not run as one process, and the line it splits along is not
 arbitrary — it is the same line ADR 0003 already drew for security reasons.
 
 | | Runs where | Needs | Holds the key? |

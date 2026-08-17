@@ -13,6 +13,7 @@ these documents explain why both look the way they do.
 | [0001](adr/0001-two-loop-architecture.md) | Two loops: a local reflex loop and a remote planner loop | A 600 ms game tick cannot accommodate a 700 ms-6 s model round trip, so the agent splits into a 20 Hz local loop and an event-driven remote one — with the rejected alternatives, including a local 7-12B VLM, costed out. |
 | [0002](adr/0002-glyph-ocr-over-general-ocr.md) | Exact glyph-bitmap matching instead of general-purpose OCR | The client renders a 12-16 px bitmap font with no anti-aliasing, which makes the screenshot a lossless encoding of the string rather than a noisy observation of it — so exact matching inverts a known encoder rather than guessing. |
 | [0003](adr/0003-untrusted-planner.md) | The LLM planner is an untrusted component | In-game chat is attacker-controlled text and synthetic input is a real OS privilege, so the planner gets symbolic-only targets, a closed eight-member capability enum, and no input handle: capability restriction beats content filtering. |
+| [0004](adr/0004-process-split-not-container-split.md) | Isolate the actuator by process, not by container | The security property comes from the process split; the container adds namespace isolation between two pieces of software by the same author running as the same user. Keeps the boundary, drops the container from the dev loop — and notes that the kill switch and the privilege boundary are the same mechanism. |
 
 ## Engineering notes
 
