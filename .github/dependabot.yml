@@ -21,14 +21,38 @@ updates:
       prefix: "deps"
       prefix-development: "deps(dev)"
 
+  # Hooks pin their own `rev`, entirely separately from the [dev] extra in
+  # pyproject. Without this block those two drift, and the failure mode is
+  # nasty: ruff v0.16.3 in the hook and a newer ruff in CI disagree about
+  # formatting, so `ruff format` locally produces a diff that CI then rejects,
+  # or vice versa. You end up fighting your own tooling and blaming the code.
+  # Dependabot skips `local` and `meta` hooks, which is what we want -- the
+  # safety-invariant hook has no version to bump.
+  - package-ecosystem: pre-commit
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      hooks:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    commit-message:
+      prefix: "hooks"
+
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
       interval: weekly
       day: monday
-    # Actions are code that runs with repo access. A stale pinned action is a
-    # supply-chain risk, so these get their own cadence rather than being
-    # grouped away.
+    # Minor and patch grouped to keep the noise down; majors deliberately arrive
+    # one at a time. An action major is a runtime or behaviour change running
+    # with repo access, and it deserves to be read on its own rather than
+    # merged as part of a batch.
+    groups:
+      actions-minor:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
     commit-message:
       prefix: "ci"
 
@@ -37,5 +61,19 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    # Patch only. The base image's Python version is not a dependency to keep
+    # current -- it is a deliberate statement that the container runs the
+    # version this project actually tests. pyproject declares >=3.11 and CI
+    # tests 3.11 and 3.13, so an unattended bump to 3.14-slim would ship an
+    # image running a Python nothing in the matrix covers, and might not even
+    # build if numpy or opencv lack wheels for it yet.
+    #
+    # Raising it should be a decision made alongside the CI matrix, in one
+    # commit, not a robot noticing a new tag.
+    ignore:
+      - dependency-name: "python"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
     commit-message:
       prefix: "docker"
