@@ -1,0 +1,40 @@
+# The first three lines are the ones that matter. A `COPY . .` in a Dockerfile
+# is how credentials end up baked into an image layer, where they survive
+# `docker rmi` of the tag, get pushed to a registry, and stay readable in the
+# layer history long after the file was "deleted". The Dockerfile here copies
+# named paths rather than `.`, so this is a second independent guard — but the
+# whole point of a second guard is that it holds when the first one changes.
+.env
+.env.*
+!.env.example
+secrets/
+*.pem
+*.key
+id_rsa*
+
+.git/
+.gitignore
+.github/
+
+__pycache__/
+*.py[cod]
+*.egg-info/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Outputs, not inputs. Traces from a previous run in the build context would be
+# copied into the image and then shadowed by the volume mount — confusing, and
+# they can be large.
+traces/
+*.jsonl
+
+# Test and benchmark scaffolding is not needed at runtime and only enlarges the
+# image and its attack surface.
+tests/
+benchmarks/
+docs/
+*.md
+!README.md

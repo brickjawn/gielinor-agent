@@ -1,0 +1,69 @@
+# Mirrors CI so failures surface before a push rather than after one.
+#
+# Deliberately does NOT include the full pytest run: a 466-test suite on every
+# commit trains you to reach for --no-verify, and a hook you routinely bypass is
+# worse than no hook, because it creates a false sense that something is
+# checking. The fast, high-value subset runs here; CI runs everything.
+#
+#   pip install pre-commit && pre-commit install
+#
+# Also worth installing the push-time hook, which is where the safety invariants
+# run:  pre-commit install --hook-type pre-push
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-added-large-files
+        # Frame captures are PNGs and it is easy to commit a few hundred MB of
+        # them without noticing. assets/frames is meant to be a curated corpus.
+        args: [--maxkb=2048]
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: detect-private-key
+      - id: mixed-line-ending
+        args: [--fix=lf]
+      - id: no-commit-to-branch
+        # Nudge toward branch-and-PR even solo, since the PR is where the diff
+        # actually gets read. Bypass with `--no-verify` when you mean to.
+        args: [--branch, main]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.3
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.14.1
+    hooks:
+      - id: mypy
+        files: ^src/gielinor/
+        additional_dependencies:
+          - numpy
+          - pydantic
+          - pydantic-settings
+          - types-PyYAML
+        args: [--strict, --ignore-missing-imports]
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.24.0
+    hooks:
+      - id: gitleaks
+
+  # Local hooks. These run the project's own guards rather than a vendored tool,
+  # so they cannot drift from what the code actually asserts.
+  - repo: local
+    hooks:
+      - id: safety-invariants
+        name: safety invariants (capability set, input defaults, no leaked keys)
+        entry: python -m pytest tests/test_safety_invariants.py tests/test_secrets.py -q
+        language: system
+        pass_filenames: false
+        # pre-push rather than pre-commit: these are cheap but not free, and the
+        # thing they protect against is a *pushed* mistake, not a local one.
+        stages: [pre-push]

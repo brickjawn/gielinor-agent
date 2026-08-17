@@ -1,0 +1,48 @@
+# gitleaks configuration.
+#
+# The default ruleset is inherited in full; this file only adds a narrow,
+# reasoned allowlist. The philosophy is that a suppression must name exactly
+# what it suppresses and say why, because a broad `paths = [".*tests.*"]` would
+# mean a real key pasted into a test is invisible — and tests are a very common
+# place for a real key to get pasted "just for a minute".
+
+[extend]
+useDefault = true
+
+[[rules]]
+# Project-specific: an OpenRouter key has a fixed, recognisable prefix, so we
+# can detect it far more precisely than any generic high-entropy rule.
+id = "openrouter-api-key"
+description = "OpenRouter API key"
+regex = '''sk-or-v1-[A-Za-z0-9]{32,}'''
+tags = ["key", "openrouter"]
+# Deliberately no rule-level allowlist. A string matching the real key shape has
+# no legitimate reason to exist in this repo, in a test or anywhere else — test
+# fixtures use "test-key-not-a-real-credential", which is not key-shaped. If this
+# rule ever fires, treat it as a real key and rotate before investigating.
+
+[allowlist]
+description = "Reasoned exceptions"
+
+# Value-shaped exceptions. Both are self-documenting non-credentials: the first
+# is the truncated placeholder in .env.example and the docs, the second is the
+# fixture every test uses precisely because it is not key-shaped.
+regexes = [
+  '''sk-or-v1-\.\.\.''',
+  '''test-key-not-a-real-credential''',
+]
+
+# Path exceptions, scoped to individual files rather than to tests/ generally.
+# A blanket tests/ suppression would hide a real key pasted into a test, and a
+# test file is one of the most common places for that to happen.
+#
+#   test_runtime.py            asserts TraceWriter redacts a credential before
+#                              it reaches the trace. The test cannot exist
+#                              without a key-shaped literal to redact — the
+#                              string being present IS the assertion.
+#   test_safety_invariants.py  contains the detection patterns themselves, so it
+#                              necessarily matches its own regexes.
+paths = [
+  '''tests/test_runtime\.py''',
+  '''tests/test_safety_invariants\.py''',
+]

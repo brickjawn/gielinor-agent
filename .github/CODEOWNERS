@@ -1,0 +1,11 @@
+# Solo project, so this is mostly a statement of intent — but it means GitHub
+# requests review on every PR, which is the prompt to actually read the diff.
+*   @OWNER
+
+# The files where a careless change alters what the agent can do, rather than
+# what it does. Listed separately so they stand out in the review UI.
+/src/gielinor/contracts.py          @OWNER
+/src/gielinor/actuator/             @OWNER
+/tests/test_safety_invariants.py    @OWNER
+/SECURITY.md                        @OWNER
+/.github/workflows/                 @OWNER

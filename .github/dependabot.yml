@@ -1,0 +1,41 @@
+version: 2
+
+updates:
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    # Grouped so a quiet week produces one reviewable PR instead of six. The
+    # security group is separate and ungrouped, because a security bump deserves
+    # to be read on its own rather than buried in a batch.
+    groups:
+      dev-tooling:
+        patterns: ["ruff", "mypy", "pytest*", "bandit", "pip-audit", "pre-commit"]
+        update-types: ["minor", "patch"]
+      runtime-minor:
+        patterns: ["numpy", "opencv-*", "pillow", "httpx", "pydantic*"]
+        update-types: ["minor", "patch"]
+    commit-message:
+      prefix: "deps"
+      prefix-development: "deps(dev)"
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    # Actions are code that runs with repo access. A stale pinned action is a
+    # supply-chain risk, so these get their own cadence rather than being
+    # grouped away.
+    commit-message:
+      prefix: "ci"
+
+  - package-ecosystem: docker
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "docker"

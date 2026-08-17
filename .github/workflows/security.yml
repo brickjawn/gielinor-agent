@@ -1,0 +1,86 @@
+name: security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Weekly, because a dependency advisory published after your last commit is
+    # exactly the case a push-triggered scan cannot catch. Monday 06:00 UTC.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  secrets:
+    name: secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history. A key committed three months ago and "removed" in the
+          # next commit is still in the repo and still needs rotating; scanning
+          # only the tip would miss it entirely.
+          fetch-depth: 0
+
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # A second, dependency-free pass that also runs on every local `pytest`.
+      # gitleaks is the better scanner, but a check that only exists in CI is a
+      # check you find out about after pushing.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: |
+          pip install -e ".[dev]"
+          python -m pytest tests/test_safety_invariants.py tests/test_secrets.py -q
+
+  dependencies:
+    name: dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          pip install pip-audit
+
+      # Non-blocking on purpose. A transitive advisory with no available fix
+      # should not stop you shipping unrelated work; it should be visible. If
+      # this becomes a rubber stamp nobody reads, make it blocking instead.
+      - name: pip-audit
+        continue-on-error: true
+        run: pip-audit --strict --desc
+
+  static-analysis:
+    name: bandit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: |
+          python -m pip install --upgrade pip
+          pip install "bandit[toml]"
+
+      # ruff already runs bandit's rule set via its S ruleset, so this is
+      # belt-and-braces and scoped to medium severity to stay signal-heavy.
+      # It exists mainly because bandit's own release cadence sometimes carries
+      # a new check before ruff mirrors it.
+      - name: bandit
+        run: bandit -c pyproject.toml -r src/gielinor -ll

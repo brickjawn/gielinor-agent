@@ -1,0 +1,169 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "gielinor-agent"
+version = "0.1.0"
+description = "A pixels-only agent that plays a locally-run 2009scape server by reading the screen and clicking."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "gielinor-agent contributors" }]
+keywords = ["computer-vision", "agent", "automation", "opencv", "llm"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Image Recognition",
+]
+
+# Core deps are deliberately small: everything platform-specific is an extra so
+# that `pip install gielinor-agent` works on a headless CI box with no display,
+# no D-Bus and no Objective-C runtime.
+dependencies = [
+  "numpy>=2.0",
+  "opencv-python>=4.10",
+  "pillow>=11.0",
+  "httpx>=0.28",
+  "pydantic>=2.9",
+  "pydantic-settings>=2.5",
+]
+
+[project.optional-dependencies]
+# PyGObject: the only maintained Python binding for GLib/Gio (xdg-desktop-portal
+# D-Bus) and GStreamer (pipewiresrc); PipeWire has no usable pure-Python client.
+# evdev: thin ctypes-free wrapper over /dev/uinput; writing raw uinput ioctls by
+# hand would be more code and more ways to wedge a keyboard.
+linux = ["pygobject>=3.48", "evdev>=1.7"]
+# pyobjc: the only way to reach ScreenCaptureKit and CoreGraphics event taps.
+macos = [
+  "pyobjc-framework-Cocoa>=10.3",
+  "pyobjc-framework-Quartz>=10.3",
+  "pyobjc-framework-ScreenCaptureKit>=10.3",
+]
+dev = [
+  "pytest>=8.0",
+  "pytest-asyncio>=0.24",
+  "ruff>=0.6",
+  "mypy>=1.11",
+]
+
+[project.scripts]
+gielinor = "gielinor.runtime.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/example/gielinor-agent"
+Documentation = "https://github.com/example/gielinor-agent/tree/main/docs"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gielinor"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/gielinor", "assets", "tests", "scripts", "SPEC.md", "README.md"]
+
+# --------------------------------------------------------------------------
+# pytest
+# --------------------------------------------------------------------------
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+# src layout without requiring an install: `python -m pytest` works in a fresh
+# clone, which is the first thing anyone reading a portfolio repo will try.
+pythonpath = ["src"]
+addopts = "-ra --strict-markers --strict-config"
+markers = [
+  "live: touches the real network (OpenRouter) or real hardware; skipped unless --run-live is passed",
+]
+asyncio_mode = "strict"
+asyncio_default_fixture_loop_scope = "function"
+filterwarnings = ["error::DeprecationWarning:gielinor.*"]
+
+# --------------------------------------------------------------------------
+# ruff
+# --------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = [
+  "E",    # pycodestyle
+  "W",
+  "F",    # pyflakes
+  "I",    # isort
+  "N",    # pep8-naming
+  "UP",   # pyupgrade
+  "B",    # bugbear
+  "A",    # builtin shadowing
+  "C4",   # comprehensions
+  "SIM",  # simplify
+  "TC",   # type-checking blocks
+  "PTH",  # pathlib
+  "RET",  # returns
+  "ARG",  # unused arguments
+  "TRY",  # exception antipatterns
+  "LOG",  # logging
+  "G",    # logging format
+  "T20",  # no print in library code
+  "ANN",  # missing annotations
+  "S",    # bandit
+  "RUF",
+]
+ignore = [
+  "ANN401",  # deliberate Any in a couple of defensive parsers
+  "TRY003",  # long messages inside raise: these are the actionable errors
+  "TRY400",  # logger.error is intentional where a traceback is noise
+  "S311",    # non-crypto RNG is the point (humanised mouse paths)
+  "RET504",  # named result before return reads better in the hot loop
+  # Exceptions are named as outcomes (CaptureUnavailable, RealInputRefused)
+  # because they are read in error messages by users, not only by developers.
+  "N818",
+  # contracts.py sets the house style with `class ActionKind(str, Enum)`, and
+  # StrEnum's __str__ differs; matching the interface boundary beats matching
+  # the linter.
+  "UP042",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "ANN", "ARG001", "ARG002", "S105", "S106", "SIM117"]
+"scripts/*" = ["T20"]  # scripts are CLIs; stdout is their interface
+"src/gielinor/runtime/cli.py" = ["T20"]  # ditto: this one *is* the CLI
+
+[tool.ruff.lint.isort]
+known-first-party = ["gielinor"]
+
+[tool.ruff.lint.flake8-type-checking]
+runtime-evaluated-base-classes = ["pydantic.BaseModel", "pydantic_settings.BaseSettings"]
+
+# --------------------------------------------------------------------------
+# mypy
+# --------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unreachable = true
+disallow_any_generics = true
+no_implicit_reexport = false
+mypy_path = "src"
+packages = ["gielinor"]
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+# Platform SDK bindings ship no stubs and are absent on CI by design.
+module = ["gi.*", "gi", "evdev.*", "objc", "Quartz.*", "ScreenCaptureKit.*", "AppKit.*", "ApplicationServices.*", "cv2.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disallow_untyped_defs = false
+
+[tool.bandit]
+# ruff already runs bandit's checks via its `S` ruleset; this config exists so
+# the standalone bandit job in CI agrees with it rather than reporting a
+# different set of findings on the same code.
+exclude_dirs = ["tests", "benchmarks", ".venv"]
+# B101 (assert) is excluded in tests only, which the exclude above covers.
+# Nothing else is skipped: if bandit finds something in src/, it should be read.

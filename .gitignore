@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Runtime output. Traces contain screen-derived data and timings from a real
+# session; they are useful to keep locally and wrong to commit.
+traces/
+*.jsonl
+captures/
+*.mp4
+
+# Calibration artefacts are derived from the user's own client, never shipped.
+assets/fonts/*.npz
+assets/fonts/*.png
+assets/profiles/local_*.toml
+
+# Secrets. OPENROUTER_API_KEY lives here and must never be committed.
+.env
+.env.*
+!.env.example
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+
+# secrets/ holds the plaintext key that Compose mounts. Never commit it.
+secrets/

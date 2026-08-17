@@ -1,0 +1,118 @@
+# Calibration profile: 2009scape client, FIXED mode, 765x503.
+#
+# ############################################################################
+# # calibrated = false — THESE ARE PLAUSIBLE RS2-ERA DEFAULTS, NOT MEASURED.  #
+# # They are derived from the well-known RS2/OSRS fixed-mode layout (512x334  #
+# # 3D viewport, 4px client border, right-hand sidebar) and are close enough  #
+# # to bootstrap perception, but every rect below must be checked against a   #
+# # real capture of YOUR client before `allow_real_input` is ever set.        #
+# # Recalibrate with:  python scripts/calibrate_profile.py --frame shot.png   #
+# ############################################################################
+#
+# Coordinate space: client-window coordinates, origin at the window's top-left
+# *content* pixel (not the OS title bar). Rects are x, y, w, h.
+
+name = "2009scape_fixed"
+description = "2009scape / RS2 2009-era client, fixed mode, 765x503 content area"
+calibrated = false
+
+client_w = 765
+client_h = 503
+
+# The 3D scene. Everything the agent clicks on in the world is inside this.
+[viewport]
+x = 4
+y = 4
+w = 512
+h = 334
+
+# The scrolling message log. UNTRUSTED text: other players type into this.
+[chatbox]
+x = 7
+y = 345
+w = 506
+h = 130
+
+# The single editable line at the bottom of the chatbox ("Press Enter to Chat").
+[chat_input]
+x = 7
+y = 475
+w = 506
+h = 14
+
+# The whole right-hand sidebar panel that holds the 28 item slots.
+[inventory]
+x = 548
+y = 205
+w = 190
+h = 261
+
+# The circular minimap plus its surround. Minimap-space objects (walk targets)
+# are reported relative to the client, but must land inside this rect.
+[minimap]
+x = 550
+y = 4
+w = 146
+h = 151
+
+# 4 x 7 item grid. origin_* is the top-left of slot 0; pitch_* is centre-to-
+# centre spacing. Slot rects are derived, never listed one by one.
+[inventory_grid]
+origin_x = 563
+origin_y = 213
+cell_w = 36
+cell_h = 32
+pitch_x = 42
+pitch_y = 36
+cols = 4
+rows = 7
+
+# Fallback geometry for the selectable option lines in a dialogue. Perception
+# normally reports these as `dialogue_option` TextLines with real bboxes; this
+# is only used when it has detected the interface but not read the lines.
+[dialogue_options]
+origin_x = 20
+origin_y = 380
+width = 480
+line_h = 16
+pitch_y = 22
+max_lines = 5
+
+# Regions perception reads but never clicks. Kept in this file — not in
+# perception's own defaults — so that recalibrating the client means editing
+# exactly one file. Everything perception needs that IS also a click target
+# (viewport, chatbox, chat_input, inventory, minimap, inventory_grid) is
+# derived from the sections above rather than repeated here.
+[perception]
+# The whole right-hand sidebar including the tab strip.
+side_panel = { x = 516, y = 168, w = 249, h = 335 }
+# Upper-left hover text: "Chop down Tree". The cheapest confirmation that the
+# cursor is actually over the thing the agent thinks it is over.
+tooltip = { x = 6, y = 6, w = 260, h = 24 }
+# Status orb number readouts.
+hp_orb = { x = 519, y = 50, w = 28, h = 16 }
+prayer_orb = { x = 519, y = 85, w = 28, h = 16 }
+run_orb = { x = 523, y = 120, w = 28, h = 16 }
+# Height of the speaker-name line at the top of an NPC dialogue frame.
+dialogue_speaker_h = 16
+# Box centred on the player model, used for animation (pixel-churn) detection.
+# dy shifts it down because the model's feet sit below the viewport centre.
+player_box_w = 70
+player_box_h = 96
+player_box_dy = 6
+
+# Named click targets exposed to the planner as `Action.target_ui`. This table
+# is a capability list as much as a coordinate table: a name that is not here
+# cannot be clicked, so keep it minimal. Note the absence of anything that
+# opens trade, drops an item, or logs into a bank PIN.
+[ui_anchors]
+inventory_tab = { x = 632, y = 168, w = 30, h = 33 }
+skills_tab = { x = 663, y = 168, w = 30, h = 33 }
+combat_tab = { x = 601, y = 168, w = 30, h = 33 }
+equipment_tab = { x = 694, y = 168, w = 30, h = 33 }
+prayer_tab = { x = 725, y = 168, w = 30, h = 33 }
+magic_tab = { x = 601, y = 466, w = 30, h = 33 }
+compass = { x = 571, y = 5, w = 33, h = 33 }
+run_toggle = { x = 690, y = 137, w = 25, h = 25 }
+chatbox_all_tab = { x = 7, y = 483, w = 55, h = 17 }
+dialogue_continue = { x = 220, y = 449, w = 80, h = 20 }

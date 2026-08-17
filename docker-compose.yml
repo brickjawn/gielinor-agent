@@ -1,0 +1,62 @@
+# Compute half only. See Dockerfile for why capture and the actuator are absent.
+#
+# The secret arrives as a file at /run/secrets/openrouter_api_key on tmpfs, which
+# is where pydantic-settings' secrets_dir already looks. It does not appear in
+# `docker inspect`, is not inherited by child processes, and is gone when the
+# container stops — none of which is true of an environment variable.
+#
+#   mkdir -p secrets && printf '%s' "$OPENROUTER_API_KEY" > secrets/openrouter_api_key
+#   chmod 600 secrets/openrouter_api_key
+#   docker compose up
+
+services:
+  agent:
+    build: .
+    image: gielinor-agent:local
+    init: true
+
+    secrets:
+      - openrouter_api_key
+
+    environment:
+      # Replay is the only capture backend that makes sense in a container:
+      # there is no display in here, by design.
+      GIELINOR_CAPTURE__BACKEND: replay
+      GIELINOR_CAPTURE__REPLAY_DIR: /app/assets/frames/raw
+      # Belt and braces. The image contains no actuator that can reach a real
+      # input device, but stating it means a future misconfiguration has to get
+      # past two independent refusals rather than one.
+      GIELINOR_ACTUATOR__BACKEND: dryrun
+      GIELINOR_ACTUATOR__ALLOW_REAL_INPUT: "0"
+      GIELINOR_ACTUATOR__ALLOW_CHAT: "0"
+      GIELINOR_RUNTIME__TRACE_PATH: /app/traces/run.jsonl
+      GIELINOR_LOG_LEVEL: INFO
+
+    volumes:
+      # Recorded frames in. Read-only: the container has no business editing
+      # the corpus it is being evaluated against.
+      - ./assets/frames:/app/assets/frames:ro
+      # Calibration data in, read-only, so recalibrating is a restart not a rebuild.
+      - ./assets/profiles:/app/assets/profiles:ro
+      # Traces out. The only writable mount, and the actual output of a run.
+      - ./traces:/app/traces
+
+    # Hardening. This project's ADR 0003 argues that capability restriction
+    # beats content filtering; applying that to the container itself rather than
+    # only to the action enum is the same argument one layer down.
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    # A wedged perception loop should not be able to starve the host.
+    mem_limit: 2g
+    pids_limit: 256
+
+secrets:
+  openrouter_api_key:
+    # Swap `file:` for `environment:` if you prefer the key to come from the
+    # shell, or point this at whatever an injector (SOPS, age, Vault Agent)
+    # writes. The application reads a file either way, so the injector is a
+    # deployment choice rather than a code change.
+    file: ./secrets/openrouter_api_key

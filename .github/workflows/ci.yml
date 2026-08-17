@@ -1,0 +1,107 @@
+name: ci
+
+# Push and PR both, because a solo project still benefits from PR checks — it is
+# the only place a diff gets read before it lands.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A new push to the same branch makes the in-flight run irrelevant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least privilege by default. Any job needing more asks for it explicitly.
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.11 is the floor pyproject declares; 3.13 catches deprecations early.
+        # Both must pass — a project that only works on the version its author
+        # happens to have installed is a project nobody else can run.
+        python-version: ["3.11", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      # The whole suite runs with no display, no network and no game client —
+      # that is a design constraint, not a CI convenience (see SPEC section 6).
+      # If a test ever needs any of those, the test is wrong, and this job
+      # failing on a bare runner is how we find out.
+      - name: Tests
+        run: python -m pytest -q --durations=10
+
+      - name: Lint
+        run: ruff check src tests benchmarks scripts
+
+      - name: Format check
+        run: ruff format --check src tests benchmarks scripts
+
+      - name: Types
+        run: python -m mypy --strict src/gielinor
+
+  benchmarks:
+    # Not a pass/fail gate — the numbers are informational and the runner is too
+    # noisy for timing assertions. It runs so that a change which destroys OCR
+    # accuracy shows up in the log rather than three weeks later.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: OCR accuracy
+        run: python benchmarks/bench_ocr.py
+      - name: Perception timing
+        run: python benchmarks/bench_perception.py
+
+  offline-demo:
+    # Proves the agent still runs end to end, not just that its parts pass tests.
+    # A green unit suite with a broken wiring diagram is a real failure mode.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Full loop over synthetic frames
+        run: python scripts/demo.py
+      - name: Confirm the run refused to touch real input
+        # The demo must never arm real input. Grepping the trace is a cheap,
+        # independent check that does not trust the code under test.
+        run: |
+          test -f traces/demo.jsonl || { echo "no trace written"; exit 1; }
+          if grep -q '"real_input": *true' traces/demo.jsonl; then
+            echo "trace claims real input was enabled in CI"; exit 1
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: demo-trace
+          path: traces/demo.jsonl
+          retention-days: 14

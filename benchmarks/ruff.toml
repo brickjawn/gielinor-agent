@@ -1,0 +1,8 @@
+# The benchmarks are CLIs whose entire output contract is stdout, exactly like
+# `scripts/` and `runtime/cli.py`, which the root config already exempts. This
+# file extends the repo config rather than replacing it so every other rule
+# still applies here.
+extend = "../pyproject.toml"
+
+[lint.per-file-ignores]
+"*.py" = ["T20"]
