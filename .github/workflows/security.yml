@@ -52,10 +52,18 @@ jobs:
           set -euo pipefail
           base="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
           tarball="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
-          curl -sSLf "${base}/${tarball}" -o /tmp/gitleaks.tar.gz
+          # Download under the release filename, not a convenience name. The
+          # checksums file references the release filename, so `sha256sum -c`
+          # looks for exactly that on disk -- saving it as gitleaks.tar.gz makes
+          # verification fail with "No such file or directory", which reads like
+          # a broken download rather than a naming mismatch.
+          curl -sSLf "${base}/${tarball}" -o "/tmp/${tarball}"
           curl -sSLf "${base}/gitleaks_${GITLEAKS_VERSION}_checksums.txt" -o /tmp/gitleaks.sums
+          # grep finding no matching line exits non-zero and pipefail kills the
+          # step, so an unrecognised filename fails closed rather than silently
+          # skipping verification.
           ( cd /tmp && grep " ${tarball}\$" gitleaks.sums | sha256sum -c - )
-          tar xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+          tar xzf "/tmp/${tarball}" -C /tmp gitleaks
           /tmp/gitleaks version
           # Full history, not a commit range. A key committed months ago and
           # "removed" in the next commit is still in the repo and still needs
