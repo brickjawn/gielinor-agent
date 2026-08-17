@@ -10,7 +10,7 @@
 # Build:  docker compose build
 # Run:    docker compose up
 
-FROM python:3.11-slim AS base
+FROM python:3.14-slim AS base
 
 # opencv-python-headless still wants libGL and libglib at runtime even though it
 # draws nothing. Installing the headless wheel without these produces an
