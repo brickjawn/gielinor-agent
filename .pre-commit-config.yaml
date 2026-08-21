@@ -42,9 +42,23 @@ repos:
     rev: v2.3.0
     hooks:
       - id: mypy
+        # Same constraint as the CI Types step, for the same reason: mypy
+        # resolves *installed* stubs, and numpy's modern stubs use PEP 695
+        # `type` statements that mypy cannot parse when told to target 3.11.
+        # Without this pin the hook venv is built with whatever python is
+        # default on the box, and on anything past 3.11 the mismatch is a
+        # guaranteed syntax error inside numpy/__init__.pyi. Requires a 3.11
+        # on PATH -- `uv python install 3.11` is the cheap way to get one.
+        language_version: python3.11
         files: ^src/gielinor/
         additional_dependencies:
           - numpy
+          - opencv-python
+          # Without opencv here, cv2 resolves to Any in the hook's isolated
+          # venv and --strict then fires no-any-return on every function that
+          # returns a cv2 result -- errors CI never sees, because CI installs
+          # the real dependency. A hook stricter than CI is the same drift as
+          # a hook looser than it.
           - pydantic
           - pydantic-settings
           - types-PyYAML
