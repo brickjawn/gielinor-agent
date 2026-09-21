@@ -39,7 +39,17 @@ CHAT_BOX = (0.00, 0.68, 0.66, 1.00)  # x0, y0, x1, y1 as fractions
 MAX_COLOURS = 400
 
 
-def check(path: Path, expected: tuple[int, int]) -> tuple[bool, list[str]]:
+def check(path: Path, expected: tuple[int, int]) -> tuple[str, list[str]]:
+    """Returns ``("PASS" | "WARN" | "FAIL", notes)``.
+
+    Size is the hard gate and colour count is only a warning, because the
+    colour heuristic assumes the chat region holds text and nothing else. An
+    NPC dialogue portrait, a level-up interface or an options menu all put
+    anti-aliased artwork there and sail past the threshold on a frame that is
+    pixel-perfect. Two of the ten frames the Phase 0 corpus needs are dialogue
+    frames, so failing them would mean routinely overriding this script -- and
+    a gate that is routinely overridden has stopped being a gate.
+    """
     notes: list[str] = []
     im = Image.open(path)
     w, h = im.size
@@ -51,7 +61,7 @@ def check(path: Path, expected: tuple[int, int]) -> tuple[bool, list[str]]:
         # resize. Saying so turns "wrong size" into "here is what happened".
         if abs(sx - sy) < 0.01 and abs(sx - 1.0) > 0.01:
             notes.append(f"uniform x{sx:.4f} resize -- something rescaled this in transit")
-        return False, notes
+        return "FAIL", notes
 
     a = np.array(im.convert("RGB"))
     x0, y0, x1, y1 = CHAT_BOX
@@ -59,9 +69,12 @@ def check(path: Path, expected: tuple[int, int]) -> tuple[bool, list[str]]:
     n = len(np.unique(crop.reshape(-1, 3), axis=0))
     notes.append(f"{n} colours in chat region")
     if n > MAX_COLOURS:
-        notes.append(f"RESAMPLED -- exceeds {MAX_COLOURS}; glyph matching will not work")
-        return False, notes
-    return True, notes
+        notes.append(
+            f"over {MAX_COLOURS}: either resampled, or artwork in the chat "
+            "region (dialogue portrait, level-up, menu). Eyeball it."
+        )
+        return "WARN", notes
+    return "PASS", notes
 
 
 def main() -> int:
@@ -78,13 +91,16 @@ def main() -> int:
         return 1
 
     bad = 0
+    warned = 0
     for f in frames:
-        ok, notes = check(f, exp)
-        if not ok:
+        status, notes = check(f, exp)
+        if status == "FAIL":
             bad += 1
-        print(f"{'PASS' if ok else 'FAIL'}  {f.name:36} {' | '.join(notes)}")
+        elif status == "WARN":
+            warned += 1
+        print(f"{status:4}  {f.name:36} {' | '.join(notes)}")
 
-    print(f"\n{len(frames) - bad}/{len(frames)} usable")
+    print(f"\n{len(frames) - bad}/{len(frames)} the right size, {warned} to eyeball")
     if bad:
         print(
             "\nResampled frames cannot be fixed after the fact -- the information\n"
