@@ -78,9 +78,14 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-#: Calibrated on the real corpus: 221 native frames across 5 scenes, against a
+#: Calibrated on the real corpus: 281 native frames across 8 scenes, against a
 #: bilinear x0.86 round-trip of each. Native spans 1.711-1.832, resampled
 #: 1.115-1.264, so the separation is +0.447 and this sits in the middle of it.
+#:
+#: Stable under corpus growth, which is the reason to believe it: recalculated
+#: after the corpus grew 27% and gained inv_00, levelup and a second chopping
+#: session, the separation and the suggested constant were unchanged to three
+#: decimal places.
 #:
 #: The synthetic estimate was 1.75, and it was wrong in the direction that
 #: matters. Real captures score lower than the synthetics (median 1.770 against
