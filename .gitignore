@@ -27,6 +27,13 @@ assets/fonts/*.npz
 assets/fonts/*.png
 assets/profiles/local_*.toml
 
+# Raw capture dumps. A 30 s session at 15 fps is ~450 PNGs, each small enough
+# that check-added-large-files waves them through, so nothing else stops them
+# landing in history permanently. The curated frames under assets/frames/ are
+# the corpus and *are* committed; this is only the unfiltered dump they are
+# selected from.
+assets/frames/raw/
+
 # Secrets. OPENROUTER_API_KEY lives here and must never be committed.
 .env
 .env.*
