@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import ast
 import re
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -359,10 +360,24 @@ def test_no_credential_shaped_string_is_committed() -> None:
         re.compile(r"AKIA[0-9A-Z]{16}"),
         re.compile(r"-----BEGIN (?:RSA |OPENSSH |EC )?PRIVATE KEY-----"),
     )
-    skip_dirs = {".git", "__pycache__", ".mypy_cache", ".pytest_cache", ".ruff_cache"}
+    # Ask git what is tracked rather than walking the tree. The old rglob had a
+    # hand-maintained skip list, which silently went stale the moment anything
+    # new landed in an ignored directory -- a .venv containing Pillow was enough,
+    # because PIL/ImageFont.py carries a string shaped exactly like an AWS key.
+    # That is a false positive on a file that is not committed and never will
+    # be, and this test is specifically about what *is* committed.
+    listing = subprocess.run(
+        ["git", "ls-files", "-z"],  # noqa: S607
+        cwd=REPO,
+        capture_output=True,
+        check=True,
+    )
+    tracked = [REPO / p for p in listing.stdout.decode().split("\0") if p]
+    assert tracked, "git ls-files returned nothing; this scan would be vacuous"
+
     offenders: list[str] = []
-    for path in REPO.rglob("*"):
-        if not path.is_file() or set(path.parts) & skip_dirs:
+    for path in tracked:
+        if not path.is_file():
             continue
         if path.suffix in {".npz", ".png", ".zip", ".jpg"}:
             continue
